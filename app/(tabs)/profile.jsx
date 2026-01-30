@@ -1,6 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
 import { Image, Pressable, View as RNView, ScrollView, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppHeader from "../../components/AppHeader";
 import ShinyButton from "../../components/ShinyButton";
@@ -31,10 +33,14 @@ function RowItem({ icon, label, onPress }) {
 
 export default function ProfileTab() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
+  const bottomActionHeight = 12 + 18 + 52;
+  const scrollBottomPadding = tabBarHeight + insets.bottom + bottomActionHeight + 24;
 
   return (
     <View style={styles.screen} lightColor={BG}>
-      {/* ✅ App Header */}
       <AppHeader
         title="Account"
         onPressSearch={() => {}}
@@ -45,9 +51,8 @@ export default function ProfileTab() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
       >
-        {/* Profile Card */}
         <RNView style={styles.profileCard}>
           <RNView style={{ alignItems: "center" }}>
             <Image
@@ -60,43 +65,88 @@ export default function ProfileTab() {
             <Text style={styles.name}>Sarah Jenkins</Text>
             <Text style={styles.email}>sarah.jenkins@example.com</Text>
 
-            <Pressable onPress={() => {}} style={styles.editBtn}>
+            <Pressable
+              onPress={() => router.push("/(modals)/edit-profile")}
+              style={styles.editBtn}
+            >
               <Text style={styles.editTxt}>Edit Profile</Text>
             </Pressable>
           </RNView>
         </RNView>
 
-        {/* Activity */}
         <SectionTitle>ACTIVITY</SectionTitle>
         <RNView style={styles.block}>
-          <RowItem label="My Orders" icon="shopping-bag" onPress={() => {}} />
-          <RowItem label="Addresses" icon="map-pin" onPress={() => {}} />
-          <RowItem label="Wishlist" icon="heart" onPress={() => router.push("/(modals)/wishlist")} />
+          {/* ✅ My Orders (inner screen modal) */}
+          <RowItem
+            label="My Orders"
+            icon="shopping-bag"
+            onPress={() => router.push("/(modals)/orders")}
+          />
+
+          {/* ✅ Addresses (inner screen modal) */}
+          <RowItem
+            label="Addresses"
+            icon="map-pin"
+            onPress={() => router.push("/(modals)/addresses")}
+          />
+
+          {/* ✅ Wishlist (inner screen modal) */}
+          <RowItem
+            label="Wishlist"
+            icon="heart"
+            onPress={() => router.push("/(modals)/wishlist")}
+          />
         </RNView>
 
-        {/* Support & Legal */}
         <SectionTitle>SUPPORT & LEGAL</SectionTitle>
         <RNView style={styles.block}>
-          <RowItem label="Help & Support" icon="help-circle" onPress={() => {}} />
-          <RowItem label="Privacy Policy" icon="shield" onPress={() => {}} />
-          <RowItem label="Terms & Conditions" icon="file-text" onPress={() => {}} />
+       <RowItem
+  label="Help & Support"
+  icon="help-circle"
+  onPress={() => router.push("/(modals)/help-support")}
+/>
+
+<RowItem
+  label="Privacy Policy"
+  icon="shield"
+  onPress={() =>
+    router.push({
+      pathname: "/(modals)/webview",
+      params: {
+        title: "Privacy Policy",
+        url: "https://www.zeenatstyles.pk/pages/privacy-policy",
+      },
+    })
+  }
+/>
+
+<RowItem
+  label="Terms & Conditions"
+  icon="file-text"
+  onPress={() =>
+    router.push({
+      pathname: "/(modals)/webview",
+      params: {
+        title: "Terms & Conditions",
+        url: "https://www.zeenatstyles.pk/pages/term-condition",
+      },
+    })
+  }
+/>
         </RNView>
 
         <Text style={styles.version}>Version 2.4.0 (2024)</Text>
       </ScrollView>
 
-      {/* ✅ Bottom Logout = ShinyButton */}
-      <RNView style={styles.bottomBar}>
-        <RNView style={styles.bottomInner}>
-          <ShinyButton
-            title="Log Out"
-            leftIcon="log-out"
-            variant="soft" // agar tumhare ShinyButton me variant support ho
-            onPress={() => {
-              // TODO: clear auth state here
-              router.replace("/(auth)/login"); // ya router.replace("/(tabs)")
-            }}
-          />
+      {/* ✅ Logout fixed ABOVE TAB BAR */}
+      <RNView style={[styles.bottomBar, { bottom: tabBarHeight }]}>
+        <RNView style={[styles.bottomInner, { paddingBottom: Math.max(12, insets.bottom) }]}>
+<ShinyButton
+  title="Log Out"
+  leftIcon="log-out"
+  variant="solid"   // ✅ soft ki jagah solid (pehle solid test kar lo)
+  onPress={() => router.replace("/(auth)/login")}
+/>
         </RNView>
       </RNView>
     </View>
@@ -195,10 +245,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderTopWidth: 1,
     borderTopColor: "rgba(226,220,212,0.7)",
   },
-  bottomInner: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 18 },
+  bottomInner: { paddingHorizontal: 16, paddingTop: 12 },
 });

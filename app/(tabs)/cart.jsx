@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Image, Pressable, View as RNView, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppHeader from "../../components/AppHeader";
 import ShinyButton from "../../components/ShinyButton";
@@ -52,6 +54,8 @@ function CartRow({ item, onMinus, onPlus }) {
 
 export default function Cart() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight(); // ✅ key fix
 
   const [items, setItems] = useState([
     {
@@ -83,9 +87,7 @@ export default function Cart() {
     },
   ]);
 
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, it) => sum + it.price * it.qty, 0);
-  }, [items]);
+  const subtotal = useMemo(() => items.reduce((sum, it) => sum + it.price * it.qty, 0), [items]);
 
   const shipping = 10;
   const discount = 25.5;
@@ -95,11 +97,13 @@ export default function Cart() {
 
   const updateQty = (id, delta) => {
     setItems((prev) =>
-      prev
-        .map((x) => (x.id === id ? { ...x, qty: Math.max(1, x.qty + delta) } : x))
-        .filter((x) => x.qty > 0)
+      prev.map((x) => (x.id === id ? { ...x, qty: Math.max(1, x.qty + delta) } : x))
     );
   };
+
+  // ✅ bottom bar height estimate (button + padding)
+  const bottomActionHeight = 12 + 18 + 52; // topPad + bottomPad + button approx
+  const listBottomPadding = tabBarHeight + insets.bottom + bottomActionHeight + 18;
 
   return (
     <View style={styles.screen} lightColor={BG}>
@@ -115,7 +119,11 @@ export default function Cart() {
         data={items}
         keyExtractor={(it) => it.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 190 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 8,
+          paddingBottom: listBottomPadding, // ✅ IMPORTANT
+        }}
         renderItem={({ item }) => (
           <CartRow
             item={item}
@@ -152,14 +160,14 @@ export default function Cart() {
         }
       />
 
-      {/* Bottom action */}
-      <RNView pointerEvents="box-none" style={styles.bottomBar}>
-        <RNView style={styles.bottomInner}>
-          <ShinyButton
-            title="Proceed to Checkout"
-            rightIcon="arrow-right"
-            onPress={() => router.push("/(modals)/checkout")}
-          />
+      {/* ✅ Bottom action (NOW ABOVE TAB BAR) */}
+      <RNView pointerEvents="box-none" style={[styles.bottomBar, { bottom: tabBarHeight }]}>
+        <RNView style={[styles.bottomInner, { paddingBottom: Math.max(12, insets.bottom) }]}>
+       <ShinyButton
+  title="Proceed to Checkout"
+  rightIcon="arrow-right"
+  onPress={() => router.push("/(modals)/checkout")}
+/>
         </RNView>
       </RNView>
     </View>
@@ -236,10 +244,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
     backgroundColor: "rgba(255,255,255,0.88)",
     borderTopWidth: 1,
     borderTopColor: "rgba(226,220,212,0.7)",
   },
-  bottomInner: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 18 },
+  bottomInner: { paddingHorizontal: 16, paddingTop: 12 },
 });

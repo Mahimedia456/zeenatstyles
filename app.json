@@ -8,26 +8,23 @@
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/images/apple-touch-icon.png"
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/ic_launcher_foreground.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.aamirali422.zeenatstyles"
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.ico"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -43,7 +40,6 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

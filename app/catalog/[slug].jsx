@@ -1,5 +1,6 @@
+// app/catalog/[slug].jsx
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, View as RNView, StyleSheet, TextInput } from "react-native";
 
@@ -8,7 +9,7 @@ import BottomSheet from "../../components/BottomSheet";
 import ProductCard from "../../components/ProductCard";
 import { Text, View } from "../../components/Themed";
 
-import productsData from "../data/products";
+import products from "../data/products";
 
 const BG = "#FBFAF9";
 const PRIMARY = "#B8803C";
@@ -34,27 +35,34 @@ const ColorDot = ({ color, active, onPress }) => (
   />
 );
 
-export default function Products() {
-  const router = useRouter();
+function normalizeSlug(s = "") {
+  return String(s).trim().toLowerCase().replace(/%20/g, " ").replace(/\s+/g, "-");
+}
 
+function prettyTitle(slug = "") {
+  const s = String(slug).replace(/[-_]+/g, " ").trim();
+  if (!s) return "Products";
+  return s.replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+export default function CatalogBySlug() {
+  const router = useRouter();
+  const { slug } = useLocalSearchParams();
+
+  const [sheet, setSheet] = useState(null); // "sort" | "filter" | null
   const [query, setQuery] = useState("");
-  const [sheet, setSheet] = useState(null); // "sort" | "filter" | "category" | null
 
   const [sort, setSort] = useState("Popular");
-  const [selectedCategory, setSelectedCategory] = useState(""); // ✅ empty = all
   const [minPrice, setMinPrice] = useState("0");
   const [maxPrice, setMaxPrice] = useState("999");
-  const [selectedColors, setSelectedColors] = useState([]); // ✅ default none
+  const [selectedColors, setSelectedColors] = useState([]);
 
-  const categories = useMemo(() => {
-    const set = new Set();
-    (productsData || []).forEach((p) => set.add(p.category));
-    return ["All", ...Array.from(set)];
-  }, []);
+  const activeSlug = useMemo(() => normalizeSlug(slug || ""), [slug]);
+  const title = useMemo(() => prettyTitle(slug || ""), [slug]);
 
   const allColors = useMemo(() => {
     const set = new Set();
-    (productsData || []).forEach((p) => (p.colors || []).forEach((c) => set.add(c)));
+    (products || []).forEach((p) => (p.colors || []).forEach((c) => set.add(c)));
     return Array.from(set);
   }, []);
 
@@ -63,11 +71,11 @@ export default function Products() {
     const min = Number(minPrice || 0);
     const max = Number(maxPrice || 999999);
 
-    let list = (productsData || []).filter((p) => {
-      if (selectedCategory && selectedCategory !== "All" && p.category !== selectedCategory) return false;
+    let list = (products || []).filter((p) => {
+      const pSlug = normalizeSlug(p.categorySlug || p.category || "");
+      if (pSlug !== activeSlug) return false;
 
-      const price = Number(p.price || 0);
-      if (!(price >= min && price <= max)) return false;
+      if (!(Number(p.price) >= min && Number(p.price) <= max)) return false;
 
       if (selectedColors.length) {
         const has = (p.colors || []).some((c) => selectedColors.includes(c));
@@ -75,7 +83,7 @@ export default function Products() {
       }
 
       if (q) {
-        const hay = `${p.title} ${p.category} ${p.description || ""}`.toLowerCase();
+        const hay = `${p.title} ${p.category}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
 
@@ -87,7 +95,7 @@ export default function Products() {
     if (sort === "Rating") list = [...list].sort((a, b) => Number(b.rating) - Number(a.rating));
 
     return list;
-  }, [query, selectedCategory, minPrice, maxPrice, selectedColors, sort]);
+  }, [activeSlug, query, minPrice, maxPrice, selectedColors, sort]);
 
   const filterCount =
     (selectedColors.length ? 1 : 0) +
@@ -95,14 +103,16 @@ export default function Products() {
 
   return (
     <View style={styles.screen} lightColor={BG}>
+      {/* ✅ Same header style like Products tab */}
       <AppHeader
-        title="Products"
+        title={title}
         onPressSearch={() => setSheet("filter")}
         onPressWishlist={() => router.push("/(modals)/wishlist")}
         onPressCart={() => router.push("/(tabs)/cart")}
         cartBadge={2}
       />
 
+      {/* ✅ Chips row - ONLY Sort + Filter */}
       <RNView style={styles.chipsRow}>
         <Chip label="Sort" icon="sliders" onPress={() => setSheet("sort")} />
         <Chip
@@ -111,9 +121,9 @@ export default function Products() {
           badge={filterCount ? String(filterCount) : null}
           onPress={() => setSheet("filter")}
         />
-        <Chip label={selectedCategory ? selectedCategory : "Category"} rightIcon="chevron-down" onPress={() => setSheet("category")} />
       </RNView>
 
+      {/* ✅ Grid exactly like Products tab */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
@@ -142,10 +152,16 @@ export default function Products() {
             />
           </RNView>
         )}
+        ListEmptyComponent={
+          <RNView style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No products found</Text>
+            <Text style={styles.emptySub}>Is category me abhi products available nahi hain.</Text>
+          </RNView>
+        }
         ListFooterComponent={<RNView style={{ height: 110 }} />}
       />
 
-      {/* Sort */}
+      {/* ✅ Sort Sheet */}
       <BottomSheet visible={sheet === "sort"} title="Sort" onClose={() => setSheet(null)}>
         {["Popular", "Price: Low", "Price: High", "Rating"].map((s) => {
           const active = sort === s;
@@ -164,27 +180,7 @@ export default function Products() {
         })}
       </BottomSheet>
 
-      {/* Category */}
-      <BottomSheet visible={sheet === "category"} title="Category" onClose={() => setSheet(null)}>
-        {categories.map((c) => {
-          const val = c === "All" ? "" : c;
-          const active = (selectedCategory || "") === val;
-          return (
-            <Pressable
-              key={c}
-              onPress={() => {
-                setSelectedCategory(val);
-                setSheet(null);
-              }}
-              style={[styles.sheetRow, active && styles.sheetRowActive]}
-            >
-              <Text style={styles.sheetRowTxt}>{c}</Text>
-            </Pressable>
-          );
-        })}
-      </BottomSheet>
-
-      {/* Filter */}
+      {/* ✅ Filter Sheet */}
       <BottomSheet visible={sheet === "filter"} title="Filter" onClose={() => setSheet(null)}>
         <Text style={styles.sheetSectionTitle}>Search</Text>
         <RNView style={styles.searchWrap}>
@@ -298,6 +294,16 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingTop: 6 },
   row: { justifyContent: "space-between", marginBottom: 16 },
   cell: { flex: 1, maxWidth: "48.5%" },
+
+  emptyWrap: { paddingTop: 30, paddingHorizontal: 16, alignItems: "center" },
+  emptyTitle: { fontSize: 16, fontWeight: "900", color: "#181510" },
+  emptySub: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(138,117,92,1)",
+    textAlign: "center",
+  },
 
   sheetRow: {
     height: 48,
